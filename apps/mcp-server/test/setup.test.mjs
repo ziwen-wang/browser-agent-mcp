@@ -7,6 +7,22 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const setupPath = fileURLToPath(new URL("../scripts/setup.mjs", import.meta.url));
+const installSkillPath = fileURLToPath(new URL("../scripts/install-skill.mjs", import.meta.url));
+
+test("skill installer copies the bundled skill to a chosen directory and preserves existing files", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "browser-agent-skill-"));
+  try {
+    const destination = join(directory, "skills", "browser-agent-mcp", "SKILL.md");
+    const installed = spawnSync(process.execPath, [installSkillPath, destination], { encoding: "utf8" });
+    assert.equal(installed.status, 0, installed.stderr);
+    assert.match(await readFile(destination, "utf8"), /browser_tabs_list/);
+    const collision = spawnSync(process.execPath, [installSkillPath, destination], { encoding: "utf8" });
+    assert.equal(collision.status, 2);
+    assert.match(collision.stderr, /left unchanged/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("setup creates a private MCP host config paired to the installed extension ID", async () => {
   const directory = await mkdtemp(join(tmpdir(), "browser-agent-setup-"));

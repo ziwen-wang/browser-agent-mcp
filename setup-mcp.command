@@ -24,11 +24,15 @@ if ! node mcp-server/setup.mjs; then
 fi
 
 echo
+echo "正在为 Codex 安装 Browser Agent Skill..."
+node mcp-server/install-skill.mjs || echo "Skill 未自动安装；可稍后重试：node mcp-server/install-skill.mjs"
+
+echo
 echo "========================================"
 echo " 下一步"
 echo "========================================"
 echo "1. 复制上方配对密钥，粘贴到扩展 Settings / 设置并保存。"
-echo "2. 重启或重新加载刚才选择的 MCP Host。"
-echo "3. 回到浏览器，确认扩展显示已连接。"
+echo "2. 重启或重新加载刚才选择的 MCP Host；Codex 用户也请重启 Codex 加载 Skill。"
+echo "3. 回到浏览器，确认扩展显示已连接，并授权当前网站。"
 echo
 read -r -p "按回车键关闭窗口..."

@@ -54,7 +54,7 @@ npm run build
 
 解压后按 [`INSTALL.md`](./INSTALL.md) 安装。用户只需 Node.js 22+；MCP Host 会按配置按需启动本机 Server，不需要用户手动常驻启动服务。扩展 zip 当前用于“加载已解压的扩展程序”；Chrome Web Store / Edge Add-ons 上架需要后续提交商店审核。
 
-第一次使用请直接打开 [`FIRST-RUN.md`](./FIRST-RUN.md)：安装扩展后，macOS 双击 `setup-mcp.command`，Windows 双击 `setup-mcp.bat`，向导会让你选择 VS Code、Cursor、Claude Desktop，并自动合并其用户级 MCP 配置（先备份，冲突时询问）。`./build.sh` 也会在构建完成后打印清晰的下一步。
+第一次使用请直接打开 [`FIRST-RUN.md`](./FIRST-RUN.md)：安装扩展后，macOS 双击 `setup-mcp.command`，Windows 双击 `setup-mcp.bat`，向导会让你选择 VS Code、Cursor、Claude Desktop，并自动合并其用户级 MCP 配置（先备份，冲突时询问）；若使用 Codex，也会安装配套 Skill。`./build.sh` 也会在构建完成后打印清晰的下一步。
 
 ## 开发者构建
 

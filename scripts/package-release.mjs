@@ -31,6 +31,8 @@ try {
   await cp(join(root, "apps/mcp-server/dist"), join(serverDir, "dist"), { recursive: true });
   await cp(join(root, "apps/mcp-server/scripts/setup.mjs"), join(serverDir, "setup.mjs"));
   await cp(join(root, "apps/mcp-server/scripts/host-config.mjs"), join(serverDir, "host-config.mjs"));
+  await cp(join(root, "apps/mcp-server/scripts/install-skill.mjs"), join(serverDir, "install-skill.mjs"));
+  await cp(join(root, "skills/browser-agent-mcp"), join(bundle, "skills/browser-agent-mcp"), { recursive: true });
   await cp(join(root, "setup-mcp.command"), join(bundle, "setup-mcp.command"));
   await cp(join(root, "setup-mcp.bat"), join(bundle, "setup-mcp.bat"));
 
