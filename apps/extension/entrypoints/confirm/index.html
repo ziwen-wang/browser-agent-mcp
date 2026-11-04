@@ -3,31 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Confirm browser action</title>
+    <title data-i18n="confirm.title">Confirm browser action</title>
   </head>
   <body>
     <main class="confirm-shell">
       <div class="confirm-brand"><span class="brand-mark">B</span> Browser Agent MCP</div>
       <section class="confirm-card">
         <div class="warning-icon" aria-hidden="true">!</div>
-        <p class="eyebrow">YOUR CONFIRMATION IS REQUIRED</p>
-        <h1>Allow this browser action?</h1>
-        <p class="intro">An agent requested an action in your current browser. Review the exact details before allowing it.</p>
+        <p class="eyebrow" data-i18n="confirm.eyebrow">YOUR CONFIRMATION IS REQUIRED</p>
+        <h1 data-i18n="confirm.heading">Allow this browser action?</h1>
+        <p class="intro" data-i18n="confirm.intro">An agent requested an action in your current browser. Review the exact details before allowing it.</p>
         <dl id="details" class="details">
-          <div><dt>Website</dt><dd id="origin">Loading…</dd></div>
-          <div><dt>Action</dt><dd id="action"></dd></div>
-          <div><dt>Target</dt><dd id="target"></dd></div>
-          <div id="value-row" class="value-row"><dt>Proposed input</dt><dd id="value"></dd></div>
+          <div><dt data-i18n="confirm.website">Website</dt><dd id="origin">Loading…</dd></div>
+          <div><dt data-i18n="confirm.action">Action</dt><dd id="action"></dd></div>
+          <div><dt data-i18n="confirm.target">Target</dt><dd id="target"></dd></div>
+          <div id="value-row" class="value-row"><dt data-i18n="confirm.proposedInput">Proposed input</dt><dd id="value"></dd></div>
         </dl>
-        <div class="warning-note"><strong>This confirmation applies only to this request.</strong> Page text cannot grant itself access. Never approve a request you did not intend.</div>
+        <div class="warning-note"><strong data-i18n="confirm.warningStrong">This confirmation applies only to this request.</strong><span data-i18n="confirm.warning">Page text cannot grant itself access. Never approve a request you did not intend.</span></div>
         <p id="error" class="error" role="status" aria-live="polite"></p>
         <div class="actions">
-          <button id="deny" class="button button-secondary" type="button">Deny action</button>
-          <button id="approve" class="button button-primary" type="button">Allow once</button>
+          <button id="deny" class="button button-secondary" type="button" data-i18n="confirm.deny">Deny action</button>
+          <button id="approve" class="button button-primary" type="button" data-i18n="confirm.allow">Allow once</button>
         </div>
-        <p class="expiry">This request expires after 1 minute.</p>
+        <p class="expiry" data-i18n="confirm.expiry">This request expires after 1 minute.</p>
       </section>
-      <p class="footer">The agent cannot approve its own request.</p>
+      <p class="footer" data-i18n="confirm.footer">The agent cannot approve its own request.</p>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

@@ -5,6 +5,7 @@ export type SitePermission = {
   origin: string;
   mode: "readonly" | "interact";
   allowFill: boolean;
+  allowAllActions?: boolean;
 };
 
 export type ExtensionRequest =

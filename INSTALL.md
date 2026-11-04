@@ -1,5 +1,7 @@
 # Browser Agent MCP installation
 
+For a concise Chinese first-run walkthrough, see [`FIRST-RUN.md`](./FIRST-RUN.md) in the complete product package.
+
 The product has two parts: the Chrome/Edge extension runs in your existing browser, and the MCP Server is launched on demand by your MCP host. You do not need to keep a terminal or background service open.
 
 ## Requirements
@@ -10,24 +12,18 @@ The product has two parts: the Chrome/Edge extension runs in your existing brows
 
 ## 1. Install the browser extension
 
-1. Extract `browser-agent-mcp-extension-<version>.zip`.
+1. Extract the complete `browser-agent-mcp-<version>.zip` package.
 2. Open `chrome://extensions` in Chrome or `edge://extensions` in Edge.
-3. Enable **Developer mode**, choose **Load unpacked**, and select the extracted `extension` folder.
+3. Enable **Developer mode**, choose **Load unpacked**, and select the `extension` folder inside the extracted package.
 4. Copy the extension ID shown by the browser.
 
-The archive is a developer/unpacked-install package. A normal one-click store installation is not available until the extension is published and approved by the Chrome Web Store or Edge Add-ons.
+The extension is a developer/unpacked-install package. A normal one-click store installation is not available until it is published and approved by the Chrome Web Store or Edge Add-ons. The smaller `browser-agent-mcp-extension-<version>.zip` contains only the extension and does not include the MCP server setup wizard.
 
 ## 2. Create the MCP host configuration
 
-From the extracted complete product folder, run:
+From the extracted complete product folder, run `setup-mcp.command` on macOS or `setup-mcp.bat` on Windows. The wizard asks for the extension ID, generates a random pairing token, and lets you select Visual Studio Code, Cursor, and/or Claude Desktop. It merges the server into each selected user's global MCP config, preserving unrelated settings and creating a backup before edits. If a `browser-agent` entry already exists, it asks before replacing it. The wizard also creates `mcp-config.json` as a private portable copy of the server config.
 
-```sh
-node mcp-server/setup.mjs YOUR_32_CHARACTER_EXTENSION_ID
-```
-
-The command creates `mcp-config.json` with the local server launch command and a fresh random pairing token. It refuses to overwrite an existing file. Keep this file private: it contains the pairing secret. Copy the `browser-agent` server entry into your MCP host configuration.
-
-The generated file uses the VS Code `mcp.json` `servers` format. Other hosts may call this section `mcpServers`; copy the generated `command`, `args`, and `env` values into the corresponding server entry for your host.
+After the wizard updates the selected host configs, reload or restart those hosts so they start the local server.
 
 ## 3. Pair the extension
 

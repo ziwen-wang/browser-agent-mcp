@@ -217,7 +217,7 @@ registerTool(
 );
 registerTool(
   "browser_page_click",
-  "Click an element identified by a selector from a recent inspect result. Always requires explicit user confirmation.",
+  "Click an element identified by a selector from a recent inspect result. Routine clicks can skip confirmation only when Allow all is enabled for this origin; form submissions, high-impact actions, and cross-origin links always require one-time confirmation.",
   {
     tabId: z.number().int().positive().optional(),
     selector: z.string().min(1).max(2000),
@@ -234,7 +234,7 @@ registerTool(
 );
 registerTool(
   "browser_page_fill",
-  "Fill a non-sensitive form field. Requires per-action confirmation unless fill is explicitly allowlisted for this exact origin.",
+  "Fill a non-sensitive form field. Search fields may be allowlisted, or routine fills can skip confirmation when Allow all is enabled for this exact origin. Sensitive fields are always blocked.",
   {
     tabId: z.number().int().positive().optional(),
     selector: z.string().min(1).max(2000),
@@ -253,7 +253,7 @@ registerTool(
 );
 registerTool(
   "browser_page_select",
-  "Choose an option in a select field. Requires explicit confirmation because the selection may trigger page behavior.",
+  "Choose an option in a select field. Requires confirmation unless Allow all is enabled for this exact origin.",
   {
     tabId: z.number().int().positive().optional(),
     selector: z.string().min(1).max(2000),
@@ -280,7 +280,7 @@ registerTool(
 );
 registerTool(
   "browser_tabs_navigate",
-  "Navigate the active tab to an HTTP(S) URL. Always requires explicit user confirmation.",
+  "Navigate the active tab to an HTTP(S) URL. Cross-origin navigation always requires one-time confirmation; same-origin navigation can skip confirmation only when Allow all is enabled.",
   {
     tabId: z.number().int().positive().optional(),
     url: z.string().url().max(2048)

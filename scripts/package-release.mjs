@@ -30,6 +30,9 @@ try {
   await cp(join(root, "apps/extension/.output/chrome-mv3"), extensionDir, { recursive: true });
   await cp(join(root, "apps/mcp-server/dist"), join(serverDir, "dist"), { recursive: true });
   await cp(join(root, "apps/mcp-server/scripts/setup.mjs"), join(serverDir, "setup.mjs"));
+  await cp(join(root, "apps/mcp-server/scripts/host-config.mjs"), join(serverDir, "host-config.mjs"));
+  await cp(join(root, "setup-mcp.command"), join(bundle, "setup-mcp.command"));
+  await cp(join(root, "setup-mcp.bat"), join(bundle, "setup-mcp.bat"));
 
   const runtimePackage = {
     name: serverPackage.name,
@@ -39,6 +42,7 @@ try {
     engines: serverPackage.engines,
     dependencies: {
       "@modelcontextprotocol/sdk": serverPackage.dependencies["@modelcontextprotocol/sdk"],
+      "jsonc-parser": serverPackage.dependencies["jsonc-parser"],
       ws: serverPackage.dependencies.ws,
       zod: serverPackage.dependencies.zod
     }
@@ -66,6 +70,8 @@ try {
   await writeFile(join(protocolNodeDir, "package.json"), `${JSON.stringify(runtimeProtocol, null, 2)}\n`);
 
   await cp(join(root, "INSTALL.md"), join(bundle, "INSTALL.md"));
+  await cp(join(root, "FIRST-RUN.md"), join(bundle, "FIRST-RUN.md"));
+  await cp(join(root, "FIRST-RUN.md"), join(releaseRoot, `FIRST-RUN-${version}.md`));
   await createZip(extensionDir, join(releaseRoot, extensionArchiveName), "extension");
   await createZip(bundle, join(releaseRoot, productArchiveName), bundleName);
   process.stdout.write(`Chrome/Edge extension package: ${join(releaseRoot, extensionArchiveName)}\n`);
@@ -90,6 +96,11 @@ async function addFiles(directory, archivePath, files) {
     const fullPath = join(directory, entry.name);
     const relativePath = `${archivePath}/${entry.name}`;
     if (entry.isDirectory()) await addFiles(fullPath, relativePath, files);
-    else if (entry.isFile()) files[relativePath] = await readFile(fullPath);
+    else if (entry.isFile()) {
+      const data = await readFile(fullPath);
+      files[relativePath] = relativePath.endsWith(".command")
+        ? [data, { os: 3, attrs: (0o100755 << 16) >>> 0 }]
+        : data;
+    }
   }
 }

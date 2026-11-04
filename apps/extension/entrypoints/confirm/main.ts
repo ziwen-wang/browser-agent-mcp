@@ -1,5 +1,6 @@
 import "./style.css";
 import { CONFIRMATION_TIMEOUT_MS } from "@browser-agent-mcp/protocol";
+import { initializeLanguage, t, translateAuditValue } from "../shared/i18n";
 
 type ConfirmationData = {
   requestId: string;
@@ -23,27 +24,27 @@ function fail(message: string): void {
 
 async function load(): Promise<void> {
   if (!requestId || !/^[0-9a-f-]{36}$/i.test(requestId)) {
-    fail("This request is invalid or has expired.");
+    fail(t("confirm.invalid"));
     return;
   }
   const response = await chrome.runtime.sendMessage({ type: "confirm:get", requestId });
   if (!response || typeof response !== "object") {
-    fail("This request is no longer available. Close this tab and retry the action.");
+    fail(t("confirm.unavailable"));
     return;
   }
   const data = response as ConfirmationData;
   if (typeof data.origin !== "string" || typeof data.action !== "string" ||
     typeof data.target !== "string" || typeof data.createdAt !== "number" ||
     Date.now() - data.createdAt > CONFIRMATION_TIMEOUT_MS) {
-    fail("This request is invalid or has expired.");
+    fail(t("confirm.invalid"));
     return;
   }
 
   (document.getElementById("origin") as HTMLElement).textContent = data.origin;
-  (document.getElementById("action") as HTMLElement).textContent = data.action;
+  (document.getElementById("action") as HTMLElement).textContent = translateAuditValue(data.action);
   (document.getElementById("target") as HTMLElement).textContent = data.target;
   if (typeof data.value === "string") {
-    (document.getElementById("value") as HTMLElement).textContent = data.value || "(empty value)";
+    (document.getElementById("value") as HTMLElement).textContent = data.value || t("confirm.empty");
     document.getElementById("value-row")?.classList.add("visible");
   }
 }
@@ -54,12 +55,23 @@ async function resolve(approved: boolean): Promise<void> {
   deny.disabled = true;
   try {
     const result = await chrome.runtime.sendMessage({ type: "confirm:resolve", requestId, approved });
-    if (!result?.ok) fail(result?.error ?? "This request has expired.");
+    if (!result?.ok) {
+      fail(result?.error === "This request has expired." || !result?.error
+        ? t("confirm.expired")
+        : result.error);
+    }
   } catch {
-    fail("Could not send your decision. The action was not approved.");
+    fail(t("confirm.sendFailed"));
   }
 }
 
 approve.addEventListener("click", () => void resolve(true));
 deny.addEventListener("click", () => void resolve(false));
-void load().catch(() => fail("Could not load this confirmation. The action was not approved."));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.uiLanguage) {
+    void load().catch(() => fail(t("confirm.loadFailed")));
+  }
+});
+void initializeLanguage()
+  .then(load)
+  .catch(() => fail(t("confirm.loadFailed")));

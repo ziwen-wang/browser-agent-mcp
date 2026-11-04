@@ -4,6 +4,7 @@ import {
   hostPermissionPattern,
   isSitePermission,
   mayAutoAllowFill,
+  maySkipActionConfirmation,
   parseExactOrigin
 } from "../dist/policy.js";
 
@@ -38,4 +39,13 @@ test("fill allowlisting is limited to non-sensitive search fields on interactive
   assert.equal(mayAutoAllowFill({ ...site, mode: "readonly" }, "search", false), false);
   assert.equal(mayAutoAllowFill({ ...site, mode: "readonly" }, "search", true), false);
   assert.equal(mayAutoAllowFill({ ...site, allowFill: false }, "search", false), false);
+});
+
+test("allow-all confirmation policy is limited to interaction-enabled sites", () => {
+  const site = { origin: "https://example.com", mode: "interact", allowFill: false };
+  assert.equal(maySkipActionConfirmation({ ...site, allowAllActions: true }), true);
+  assert.equal(maySkipActionConfirmation({ ...site, allowAllActions: false }), false);
+  assert.equal(maySkipActionConfirmation({ ...site, mode: "readonly", allowAllActions: true }), false);
+  assert.equal(isSitePermission({ ...site, allowAllActions: true }), true);
+  assert.equal(isSitePermission({ ...site, allowAllActions: "yes" }), false);
 });

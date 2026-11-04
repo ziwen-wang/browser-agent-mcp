@@ -1,6 +1,7 @@
 import "./style.css";
 import type { SitePermission } from "@browser-agent-mcp/protocol";
 import { hostPermissionPattern, isSitePermission, parseExactOrigin } from "@browser-agent-mcp/protocol/policy.js";
+import { initializeLanguage, saveLanguage, t, translateAuditValue } from "../shared/i18n";
 
 type AuditEntry = { at: number; origin: string; action: string; result: string };
 const byId = <T extends HTMLElement>(id: string): T => {
@@ -11,6 +12,7 @@ const byId = <T extends HTMLElement>(id: string): T => {
 
 const notice = byId<HTMLDivElement>("notice");
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+let screenshotEnabled = false;
 
 function showNotice(message: string, isError = false): void {
   notice.textContent = message;
@@ -22,18 +24,33 @@ function showNotice(message: string, isError = false): void {
 
 function exactOrigin(input: string): string {
   const origin = parseExactOrigin(input);
-  if (!origin) throw new Error("Enter only an HTTP(S) origin, for example https://example.com (no path, credentials, query, or fragment).");
+  if (!origin) throw new Error(t("error.origin"));
   return origin;
+}
+
+function translatedError(error: unknown): string {
+  if (!(error instanceof Error)) return t("error.actionFailed");
+  const knownErrors: Record<string, Parameters<typeof t>[0]> = {
+    "The settings action failed.": "error.actionFailed",
+    "Enter only an HTTP(S) origin, for example https://example.com (no path, credentials, query, or fragment).": "error.origin",
+    "The pairing token must be at least 32 characters.": "error.tokenShort",
+    "The bridge port must be between 1024 and 65535.": "error.port",
+    "Site access was not granted. No website data was added.": "error.sitePermission"
+  };
+  return knownErrors[error.message] ? t(knownErrors[error.message]) : error.message;
 }
 
 function runUiAction(action: () => Promise<void>): void {
   void action().catch((error: unknown) =>
-    showNotice(error instanceof Error ? error.message : "The settings action failed.", true)
+    showNotice(translatedError(error), true)
   );
 }
 
 async function load(): Promise<void> {
-  const stored = await chrome.storage.local.get(["pairingToken", "bridgePort", "connectionStatus", "sites", "paused", "auditLog"]);
+  const stored = await chrome.storage.local.get(["pairingToken", "bridgePort", "connectionStatus", "sites", "paused", "auditLog", "uiLanguage"]);
+  byId<HTMLSelectElement>("ui-language").value = stored.uiLanguage === "zh-CN" || (!stored.uiLanguage && document.documentElement.lang === "zh-CN")
+    ? "zh-CN"
+    : "en";
   const tokenInput = byId<HTMLInputElement>("pairing-token");
   if (document.activeElement !== tokenInput) tokenInput.value = typeof stored.pairingToken === "string" ? stored.pairingToken : "";
   const portInput = byId<HTMLInputElement>("bridge-port");
@@ -51,18 +68,18 @@ function renderConnection(status: unknown): void {
   dot.classList.remove("connected", "error");
   if (status === "connected") {
     dot.classList.add("connected");
-    label.textContent = "MCP server connected";
+    label.textContent = t("settings.connected");
   } else if (status === "not-configured") {
-    label.textContent = "Pairing not configured";
+    label.textContent = t("settings.notPaired");
   } else {
     dot.classList.add("error");
-    label.textContent = "MCP server disconnected";
+    label.textContent = t("settings.disconnected");
   }
 }
 
 function renderPause(paused: boolean): void {
   const button = byId<HTMLButtonElement>("pause-button");
-  button.textContent = paused ? "Resume agent access" : "Pause agent access";
+  button.textContent = paused ? t("settings.resume") : t("settings.pause");
   button.classList.toggle("button-danger", !paused);
   button.classList.toggle("button-primary", paused);
   byId("pause-button").closest(".section-card")?.classList.toggle("paused", paused);
@@ -74,7 +91,7 @@ async function renderSites(sites: SitePermission[]): Promise<void> {
   if (sites.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "No sites added. The agent cannot read or control any website yet.";
+    empty.textContent = t("settings.noSites");
     list.append(empty);
     return;
   }
@@ -89,33 +106,44 @@ async function renderSites(sites: SitePermission[]): Promise<void> {
 
     const mode = document.createElement("span");
     mode.className = `site-badge${site.mode === "interact" ? " interact" : ""}`;
-    mode.textContent = site.mode === "interact" ? "INTERACTION" : "READ-ONLY";
+    mode.textContent = site.mode === "interact" ? t("settings.interactionBadge") : t("settings.readonlyBadge");
 
     const modeButton = document.createElement("button");
     modeButton.className = "text-button";
     modeButton.type = "button";
-    modeButton.textContent = site.mode === "interact" ? "Set read-only" : "Enable interaction";
+    modeButton.textContent = site.mode === "interact" ? t("settings.setReadonly") : t("settings.enableInteraction");
     modeButton.addEventListener("click", () => runUiAction(() => updateSite(site, {
       ...site,
       mode: site.mode === "interact" ? "readonly" : "interact",
-      allowFill: false
+      allowFill: false,
+      allowAllActions: site.mode === "interact" ? false : site.allowAllActions
     })));
 
     const fillButton = document.createElement("button");
     fillButton.className = "text-button fill-toggle";
     fillButton.type = "button";
-    fillButton.textContent = site.mode === "interact" && site.allowFill ? "Search fill allowed ✓" : "Allow search fill";
-    fillButton.title = "Only search-type fields can be filled without confirmation. Clicks and navigation always require confirmation.";
+    fillButton.textContent = site.mode === "interact" && site.allowFill ? t("settings.searchFillAllowed") : t("settings.allowSearchFill");
+    fillButton.title = t("settings.searchFillTitle");
     fillButton.disabled = site.mode !== "interact";
     fillButton.addEventListener("click", () => runUiAction(() => updateSite(site, { ...site, allowFill: !site.allowFill })));
+
+    const confirmationButton = document.createElement("button");
+    confirmationButton.className = "text-button confirm-toggle";
+    confirmationButton.type = "button";
+    confirmationButton.textContent = site.allowAllActions ? t("settings.confirmEachAction") : t("settings.allowAllActions");
+    confirmationButton.title = t("settings.allowAllActionsTitle");
+    confirmationButton.disabled = site.mode !== "interact";
+    confirmationButton.addEventListener("click", () => runUiAction(() =>
+      updateSite(site, { ...site, allowAllActions: !site.allowAllActions })
+    ));
 
     const removeButton = document.createElement("button");
     removeButton.className = "text-button remove-site";
     removeButton.type = "button";
-    removeButton.textContent = "Revoke";
+    removeButton.textContent = t("settings.revoke");
     removeButton.addEventListener("click", () => runUiAction(() => removeSite(site)));
 
-    row.append(origin, mode, modeButton, fillButton, removeButton);
+    row.append(origin, mode, modeButton, fillButton, confirmationButton, removeButton);
     list.append(row);
   }
 }
@@ -125,8 +153,13 @@ async function updateSite(previous: SitePermission, next: SitePermission): Promi
   const sites = (Array.isArray(stored.sites) ? stored.sites.filter(isSitePermission) : [])
     .map((site) => site.origin === previous.origin ? next : site);
   await chrome.storage.local.set({ sites });
-  await appendAudit(next.origin, "Update site policy", next.mode === "readonly" ? "read-only" : next.allowFill ? "interact+search-fill" : "interact");
-  showNotice(`${next.origin} access updated.`);
+  const auditResult = next.mode === "readonly"
+    ? "read-only"
+    : next.allowAllActions
+      ? "allow-all-actions"
+      : next.allowFill ? "interact+search-fill" : "interact";
+  await appendAudit(next.origin, "Update site policy", auditResult);
+  showNotice(t("settings.siteUpdated", { origin: next.origin }));
   await load();
 }
 
@@ -140,16 +173,17 @@ async function removeSite(site: SitePermission): Promise<void> {
   }
   await chrome.storage.local.set({ sites });
   await appendAudit(site.origin, "Revoke site access", "revoked");
-  showNotice(`Revoked ${site.origin}.`);
+  showNotice(t("settings.siteRevoked", { origin: site.origin }));
   await load();
 }
 
 async function renderScreenshotPermission(): Promise<void> {
   const enabled = await chrome.permissions.contains({ permissions: ["tabs"] });
+  screenshotEnabled = enabled;
   byId("screenshot-description").textContent = enabled
-    ? "Granted. Extension receives browser tab metadata; the agent only receives captures of visible, authorized pages."
-    : "Not granted. The agent cannot capture screenshots.";
-  byId<HTMLButtonElement>("screenshot-button").textContent = enabled ? "Disable screenshots" : "Enable screenshots";
+    ? t("settings.screenshotGranted")
+    : t("settings.screenshotDenied");
+  byId<HTMLButtonElement>("screenshot-button").textContent = enabled ? t("settings.disableScreenshots") : t("settings.enableScreenshots");
 }
 
 function renderAudit(entries: AuditEntry[]): void {
@@ -158,7 +192,7 @@ function renderAudit(entries: AuditEntry[]): void {
   if (entries.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "No recent activity.";
+    empty.textContent = t("settings.noActivity");
     list.append(empty);
     return;
   }
@@ -172,13 +206,13 @@ function renderAudit(entries: AuditEntry[]): void {
     origin.title = entry.origin;
     const action = document.createElement("span");
     action.className = "audit-action";
-    action.textContent = entry.action;
+    action.textContent = translateAuditValue(entry.action);
     const result = document.createElement("span");
     result.className = `audit-result ${entry.result}`;
-    result.textContent = entry.result;
+    result.textContent = translateAuditValue(entry.result);
     const time = document.createElement("span");
     time.className = "audit-time";
-    time.textContent = new Date(entry.at).toLocaleString();
+    time.textContent = new Date(entry.at).toLocaleString(document.documentElement.lang);
     row.append(origin, action, result, time);
     list.append(row);
   }
@@ -196,10 +230,10 @@ byId<HTMLFormElement>("connection-form").addEventListener("submit", (event) => {
   runUiAction(async () => {
     const token = byId<HTMLInputElement>("pairing-token").value.trim();
     const port = Number(byId<HTMLInputElement>("bridge-port").value);
-    if (token.length < 32) throw new Error("The pairing token must be at least 32 characters.");
-    if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("The bridge port must be between 1024 and 65535.");
+    if (token.length < 32) throw new Error(t("error.tokenShort"));
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error(t("error.port"));
     await chrome.storage.local.set({ pairingToken: token, bridgePort: port });
-    showNotice("Connection settings saved. The extension is reconnecting.");
+    showNotice(t("notice.connectionSaved"));
     await load();
   });
 });
@@ -208,7 +242,7 @@ byId<HTMLButtonElement>("toggle-token").addEventListener("click", () => {
   const input = byId<HTMLInputElement>("pairing-token");
   const visible = input.type === "text";
   input.type = visible ? "password" : "text";
-  byId("toggle-token").textContent = visible ? "Show" : "Hide";
+  byId("toggle-token").textContent = visible ? t("settings.show") : t("settings.hide");
 });
 
 byId<HTMLFormElement>("site-form").addEventListener("submit", (event) => {
@@ -218,7 +252,7 @@ byId<HTMLFormElement>("site-form").addEventListener("submit", (event) => {
     const mode = byId<HTMLSelectElement>("site-mode").value === "interact" ? "interact" : "readonly";
     const pattern = hostPermissionPattern(origin);
     if (!await chrome.permissions.request({ origins: [pattern] })) {
-      throw new Error("Site access was not granted. No website data was added.");
+      throw new Error(t("error.sitePermission"));
     }
 
     const stored = await chrome.storage.local.get("sites");
@@ -231,7 +265,7 @@ byId<HTMLFormElement>("site-form").addEventListener("submit", (event) => {
     await chrome.storage.local.set({ sites: updated });
     await appendAudit(origin, "Configure site access", mode);
     byId<HTMLInputElement>("site-origin").value = "";
-    showNotice(`${origin} added as ${mode === "readonly" ? "read-only" : "interactive"}.`);
+    showNotice(t(mode === "readonly" ? "notice.siteAddedReadonly" : "notice.siteAddedInteract", { origin }));
     await load();
   });
 });
@@ -241,21 +275,20 @@ byId<HTMLButtonElement>("pause-button").addEventListener("click", () => {
     const stored = await chrome.storage.local.get("paused");
     const paused = stored.paused !== true;
     await chrome.storage.local.set({ paused });
-    showNotice(paused ? "Agent access paused." : "Agent access resumed.");
+    showNotice(paused ? t("notice.accessPaused") : t("notice.accessResumed"));
     await load();
   });
 });
 
 byId<HTMLButtonElement>("screenshot-button").addEventListener("click", () => {
   runUiAction(async () => {
-    const enabled = byId<HTMLButtonElement>("screenshot-button").textContent === "Disable screenshots";
-    if (enabled) {
+    if (screenshotEnabled) {
       await chrome.permissions.remove({ permissions: ["tabs"] });
-      showNotice("Screenshot permission disabled.");
+      showNotice(t("notice.screenshotDisabled"));
     } else if (await chrome.permissions.request({ permissions: ["tabs"] })) {
-      showNotice("Screenshot permission granted.");
+      showNotice(t("notice.screenshotEnabled"));
     } else {
-      showNotice("Screenshot permission was not granted.", true);
+      showNotice(t("notice.screenshotDenied"), true);
     }
     await load();
   });
@@ -264,10 +297,16 @@ byId<HTMLButtonElement>("screenshot-button").addEventListener("click", () => {
 byId<HTMLButtonElement>("clear-audit").addEventListener("click", () => {
   runUiAction(async () => {
     await chrome.storage.local.set({ auditLog: [] });
-    showNotice("Activity history cleared.");
+    showNotice(t("notice.historyCleared"));
     await load();
   });
 });
 
 chrome.storage.onChanged.addListener(() => void load());
-void load().catch((error: unknown) => showNotice(error instanceof Error ? error.message : "Could not load settings.", true));
+byId<HTMLSelectElement>("ui-language").addEventListener("change", (event) => {
+  const language = (event.currentTarget as HTMLSelectElement).value;
+  runUiAction(async () => saveLanguage(language === "zh-CN" ? "zh-CN" : "en"));
+});
+void initializeLanguage()
+  .then(load)
+  .catch((error: unknown) => showNotice(error instanceof Error ? error.message : t("notice.couldNotLoad"), true));

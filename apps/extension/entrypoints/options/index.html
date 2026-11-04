@@ -4,26 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="wxt.open-in-tab" content="true" />
-    <title>Browser Agent MCP settings</title>
+    <title data-i18n="settings.title">Browser Agent MCP settings</title>
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
-        <a class="brand" href="#" aria-label="Browser Agent MCP home">
+        <a class="brand" href="#" aria-label="Browser Agent MCP home" data-i18n-aria-label="settings.home">
           <span class="brand-mark" aria-hidden="true">B</span>
           <span>browser<span class="brand-light">agent</span><span class="brand-mcp">MCP</span></span>
         </a>
         <div class="topbar-status">
           <span id="connection-dot" class="status-dot"></span>
-          <span id="connection-label">Checking connection</span>
+          <span id="connection-label" data-i18n="settings.checkingConnection">Checking connection</span>
         </div>
+        <label class="language-picker">
+          <span data-i18n="language.label">Language</span>
+          <select id="ui-language" aria-label="Language" data-i18n-aria-label="language.label">
+            <option value="en" data-i18n="language.english">English</option>
+            <option value="zh-CN" data-i18n="language.chinese">简体中文</option>
+          </select>
+        </label>
       </header>
 
       <section class="hero">
         <div>
-          <p class="eyebrow">LOCAL BROWSER CONTROL</p>
-          <h1>Your browser,<br /><span>under your control.</span></h1>
-          <p class="hero-copy">Give your MCP agent carefully scoped access to the browser you are already using. Your site access starts in read-only mode.</p>
+          <p class="eyebrow" data-i18n="settings.heroEyebrow">LOCAL BROWSER CONTROL</p>
+          <h1><span class="hero-title" data-i18n="settings.heroTitle">Your browser,</span><br /><span data-i18n="settings.heroTitleAccent">under your control.</span></h1>
+          <p class="hero-copy" data-i18n="settings.heroCopy">Give your MCP agent carefully scoped access to the browser you are already using. Your site access starts in read-only mode.</p>
         </div>
         <div class="hero-art" aria-hidden="true">
           <div class="browser-card">
@@ -40,38 +47,38 @@
         <div class="section-heading">
           <div class="section-icon pause-icon">Ⅱ</div>
           <div>
-            <h2>Agent access</h2>
-            <p>Pause all browser actions immediately without removing your site settings.</p>
+            <h2 data-i18n="settings.access">Agent access</h2>
+            <p data-i18n="settings.pauseDescription">Pause all browser actions immediately without removing your site settings.</p>
           </div>
         </div>
-        <button id="pause-button" class="button button-danger" type="button">Pause agent access</button>
+        <button id="pause-button" class="button button-danger" type="button" data-i18n="settings.pause">Pause agent access</button>
       </section>
 
       <section class="section-card">
         <div class="section-heading">
           <div class="section-icon bridge-icon">↔</div>
           <div>
-            <p class="step-label">01 / CONNECTION</p>
-            <h2>Pair your local MCP server</h2>
-            <p>The bridge only listens on this computer. Keep your pairing token private.</p>
+            <p class="step-label" data-i18n="settings.connectionStep">01 / CONNECTION</p>
+            <h2 data-i18n="settings.pairServer">Pair your local MCP server</h2>
+            <p data-i18n="settings.pairDescription">The bridge only listens on this computer. Keep your pairing token private.</p>
           </div>
         </div>
         <form id="connection-form" class="form-grid">
           <label class="field field-wide">
-            <span>Pairing token</span>
+            <span data-i18n="settings.pairingToken">Pairing token</span>
             <div class="input-with-action">
-              <input id="pairing-token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the 64-character token from your MCP server" />
-              <button id="toggle-token" class="text-button" type="button">Show</button>
+              <input id="pairing-token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the 64-character token from your MCP server" data-i18n-placeholder="settings.tokenPlaceholder" />
+              <button id="toggle-token" class="text-button" type="button" data-i18n="settings.show">Show</button>
             </div>
-            <small>At least 32 characters. It is stored locally in this browser profile.</small>
+            <small data-i18n="settings.tokenHelp">At least 32 characters. It is stored locally in this browser profile.</small>
           </label>
           <label class="field">
-            <span>Local bridge port</span>
+            <span data-i18n="settings.bridgePort">Local bridge port</span>
             <input id="bridge-port" type="number" min="1024" max="65535" value="38741" />
           </label>
           <div class="field field-action">
             <span>&nbsp;</span>
-            <button class="button button-primary" type="submit">Save connection</button>
+            <button class="button button-primary" type="submit" data-i18n="settings.saveConnection">Save connection</button>
           </div>
         </form>
       </section>
@@ -80,26 +87,26 @@
         <div class="section-heading">
           <div class="section-icon site-icon">◎</div>
           <div>
-            <p class="step-label">02 / SITE ACCESS</p>
-            <h2>Choose which sites the agent can see</h2>
-            <p>Only exact origins you add here are accessible. No site is trusted by default.</p>
+            <p class="step-label" data-i18n="settings.siteStep">02 / SITE ACCESS</p>
+            <h2 data-i18n="settings.siteTitle">Choose which sites the agent can see</h2>
+            <p data-i18n="settings.siteDescription">Only exact origins you add here are accessible. No site is trusted by default.</p>
           </div>
         </div>
         <form id="site-form" class="site-form">
           <label class="field domain-field">
-            <span>Website origin</span>
-            <input id="site-origin" type="url" required placeholder="https://example.com" />
+            <span data-i18n="settings.websiteOrigin">Website origin</span>
+            <input id="site-origin" type="url" required placeholder="https://example.com" data-i18n-placeholder="settings.originPlaceholder" />
           </label>
           <label class="field mode-field">
-            <span>Access mode</span>
+            <span data-i18n="settings.accessMode">Access mode</span>
             <select id="site-mode">
-              <option value="readonly">Read-only</option>
-              <option value="interact">Allow interaction</option>
+              <option value="readonly" data-i18n="settings.readonly">Read-only</option>
+              <option value="interact" data-i18n="settings.interact">Allow interaction</option>
             </select>
           </label>
-          <button class="button button-primary add-site-button" type="submit">Add site</button>
+          <button class="button button-primary add-site-button" type="submit" data-i18n="settings.addSite">Add site</button>
         </form>
-        <p class="inline-help">Interaction lets the agent click and fill fields. Clicks and navigation always need your confirmation.</p>
+        <p class="inline-help" data-i18n="settings.siteHelp">Interaction lets the agent click and fill fields. Allow all skips prompts for routine actions on this site; high-impact actions and cross-site navigation still ask.</p>
         <div id="sites-list" class="sites-list"></div>
       </section>
 
@@ -107,17 +114,17 @@
         <div class="section-heading">
           <div class="section-icon image-icon">▧</div>
           <div>
-            <p class="step-label">03 / VISUAL ACCESS</p>
-            <h2>Screenshots are optional</h2>
-            <p>DOM inspection is the default. Grant the additional browser permission only if your workflow needs visual fallback.</p>
+            <p class="step-label" data-i18n="settings.visualStep">03 / VISUAL ACCESS</p>
+            <h2 data-i18n="settings.screenshotsTitle">Screenshots are optional</h2>
+            <p data-i18n="settings.screenshotsDescription">DOM inspection is the default. Grant the additional browser permission only if your workflow needs visual fallback.</p>
           </div>
         </div>
         <div class="permission-row">
           <div>
-            <strong>Visible tab screenshot permission</strong>
+            <strong data-i18n="settings.screenshotPermission">Visible tab screenshot permission</strong>
             <p id="screenshot-description">Not granted. The agent cannot capture screenshots.</p>
           </div>
-          <button id="screenshot-button" class="button button-secondary" type="button">Enable screenshots</button>
+          <button id="screenshot-button" class="button button-secondary" type="button" data-i18n="settings.enableScreenshots">Enable screenshots</button>
         </div>
       </section>
 
@@ -125,34 +132,34 @@
         <div class="section-heading">
           <div class="section-icon lock-icon">⌑</div>
           <div>
-            <p class="step-label">ALWAYS ON</p>
-            <h2>Safety rules</h2>
+            <p class="step-label" data-i18n="settings.alwaysOn">ALWAYS ON</p>
+            <h2 data-i18n="settings.safetyTitle">Safety rules</h2>
           </div>
         </div>
         <ul class="safety-list">
-          <li><span>✓</span><div><strong>Read-only by default</strong><small>Every new origin starts with inspection only.</small></div></li>
-          <li><span>✓</span><div><strong>Confirm before acting</strong><small>Clicks and navigation always ask. Filling asks unless explicitly allowlisted.</small></div></li>
-          <li><span>✓</span><div><strong>Sensitive fields are blocked</strong><small>Passwords, payment data, verification codes, and file inputs are never filled.</small></div></li>
-          <li><span>✓</span><div><strong>High-risk actions are never allowlisted</strong><small>Submitting, sending, purchasing, deleting, and similar actions always require your direct browser interaction.</small></div></li>
-          <li><span>✓</span><div><strong>Private local audit</strong><small>Recent action categories are recorded without field values or page contents.</small></div></li>
+          <li><span>✓</span><div><strong data-i18n="settings.readonlyDefault">Read-only by default</strong><small data-i18n="settings.readonlyExplanation">Every new origin starts with inspection only.</small></div></li>
+          <li><span>✓</span><div><strong data-i18n="settings.confirmActions">Confirm before acting</strong><small data-i18n="settings.confirmExplanation">Clicks and navigation always ask. Filling asks unless explicitly allowlisted.</small></div></li>
+          <li><span>✓</span><div><strong data-i18n="settings.sensitiveBlocked">Sensitive fields are blocked</strong><small data-i18n="settings.sensitiveExplanation">Passwords, payment data, verification codes, and file inputs are never filled.</small></div></li>
+          <li><span>✓</span><div><strong data-i18n="settings.highRisk">High-risk actions are never allowlisted</strong><small data-i18n="settings.highRiskExplanation">Submitting, sending, purchasing, deleting, and similar actions always require your direct browser interaction.</small></div></li>
+          <li><span>✓</span><div><strong data-i18n="settings.privateAudit">Private local audit</strong><small data-i18n="settings.auditExplanation">Recent action categories are recorded without field values or page contents.</small></div></li>
         </ul>
       </section>
 
       <section class="section-card audit-card">
         <div class="section-heading audit-heading">
           <div>
-            <p class="step-label">LOCAL ONLY · LAST 50 EVENTS</p>
-            <h2>Recent activity</h2>
-            <p>Audit entries contain origins and action types only, never form values.</p>
+            <p class="step-label" data-i18n="settings.auditLabel">LOCAL ONLY · LAST 50 EVENTS</p>
+            <h2 data-i18n="settings.activity">Recent activity</h2>
+            <p data-i18n="settings.auditDescription">Audit entries contain origins and action types only, never form values.</p>
           </div>
-          <button id="clear-audit" class="text-button" type="button">Clear history</button>
+          <button id="clear-audit" class="text-button" type="button" data-i18n="settings.clearHistory">Clear history</button>
         </div>
         <div id="audit-list" class="audit-list"></div>
       </section>
 
       <footer>
         <span>Browser Agent MCP</span>
-        <span>Permission-first · Local bridge · You stay in control</span>
+        <span data-i18n="settings.footer">Permission-first · Local bridge · You stay in control</span>
       </footer>
     </main>
     <script type="module" src="./main.ts"></script>

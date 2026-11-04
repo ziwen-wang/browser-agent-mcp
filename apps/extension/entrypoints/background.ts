@@ -1,5 +1,5 @@
 import { CONFIRMATION_TIMEOUT_MS, type BridgeReply, type ExtensionRequest, type PageSnapshot, type SitePermission } from "@browser-agent-mcp/protocol";
-import { hostPermissionPattern, isSitePermission, mayAutoAllowFill } from "@browser-agent-mcp/protocol/policy.js";
+import { hostPermissionPattern, isSitePermission, mayAutoAllowFill, maySkipActionConfirmation } from "@browser-agent-mcp/protocol/policy.js";
 import { defineBackground } from "wxt/utils/define-background";
 
 const DEFAULT_PORT = 38741;
@@ -10,22 +10,16 @@ let isConnecting = false;
 let auditQueue: Promise<void> = Promise.resolve();
 
 type Confirmation = {
-  resolve: (approved: boolean) => void;
-  tabId: number;
+  resolve: (decision: ConfirmationDecision) => void;
 };
 
+type ConfirmationDecision = { approved: boolean; allowAll: boolean };
+
 const confirmations = new Map<string, Confirmation>();
+let confirmationQueue: Promise<void> = Promise.resolve();
 
 export default defineBackground(() => {
   void connectBridge();
-  chrome.tabs.onRemoved.addListener((tabId) => {
-    for (const [requestId, pending] of confirmations) {
-      if (pending.tabId === tabId) {
-        pending.resolve(false);
-        void chrome.storage.session.remove(`confirmation:${requestId}`);
-      }
-    }
-  });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && (changes.pairingToken || changes.bridgePort)) {
       disconnectBridge();
@@ -35,7 +29,13 @@ export default defineBackground(() => {
 
   chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
     if (isConfirmationMessage(message)) {
-      void handleConfirmationMessage(message, sender).then(sendResponse);
+      void handleConfirmationMessage(message, sender).then(
+        sendResponse,
+        (error: unknown) => sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : "The confirmation could not be processed."
+        })
+      );
       return true;
     }
     return false;
@@ -209,12 +209,28 @@ async function checkInteractivePermission(origin: string): Promise<SitePermissio
   return site;
 }
 
-async function requestConfirmation(
+function requestConfirmation(
   tabId: number,
   origin: string,
   action: string,
   target: string,
-  value?: string
+  value?: string,
+  allowAllAvailable = true
+): Promise<void> {
+  const current = confirmationQueue.then(() =>
+    requestConfirmationNow(tabId, origin, action, target, value, allowAllAvailable)
+  );
+  confirmationQueue = current.catch(() => undefined);
+  return current;
+}
+
+async function requestConfirmationNow(
+  tabId: number,
+  origin: string,
+  action: string,
+  target: string,
+  value?: string,
+  allowAllAvailable = true
 ): Promise<void> {
   const requestId = crypto.randomUUID();
   const message = {
@@ -223,45 +239,41 @@ async function requestConfirmation(
     action,
     target: target || "(unnamed page element)",
     value,
+    allowAllAvailable,
     createdAt: Date.now()
   };
   await recordAudit(origin, action, "requested");
   await chrome.storage.session.set({ [`confirmation:${requestId}`]: message });
-  const decision = new Promise<boolean>((resolve) => {
+  const decision = new Promise<ConfirmationDecision>((resolve) => {
     const timeout = setTimeout(() => {
       const pending = confirmations.get(requestId);
-      const confirmationTabId = pending?.tabId;
-      pending?.resolve(false);
-      if (confirmationTabId && confirmationTabId > 0) {
-        void chrome.tabs.remove(confirmationTabId).catch(() => undefined);
-      }
+      pending?.resolve({ approved: false, allowAll: false });
+      void clearConfirmationBadge();
     }, CONFIRMATION_TIMEOUT_MS);
     confirmations.set(requestId, {
-      tabId: -1,
-      resolve: (approved) => {
+      resolve: (result) => {
         clearTimeout(timeout);
         confirmations.delete(requestId);
-        resolve(approved);
+        resolve(result);
+        void clearConfirmationBadge();
       }
     });
   });
 
   try {
-    const confirmationTab = await chrome.tabs.create({
-      url: `${chrome.runtime.getURL("confirm.html")}?requestId=${encodeURIComponent(requestId)}`,
-      active: true
-    });
-    const pending = confirmations.get(requestId);
-    if (pending) pending.tabId = confirmationTab.id ?? -1;
+    await chrome.action.setBadgeBackgroundColor({ color: "#b45309" });
+    await chrome.action.setBadgeText({ text: "!" });
+    if (typeof chrome.action.openPopup === "function") {
+      await chrome.action.openPopup();
+    } else {
+      console.warn("Browser confirmation is pending. Click the Browser Agent toolbar icon to review it.");
+    }
   } catch (error) {
-    confirmations.get(requestId)?.resolve(false);
-    await chrome.storage.session.remove(`confirmation:${requestId}`);
-    await recordAudit(origin, action, "prompt-failed");
-    throw new Error(`Could not open the confirmation window: ${error instanceof Error ? error.message : "unknown error"}`);
+    console.warn("Could not open the Browser Agent popup. Click its toolbar icon to review the pending action.", error);
   }
 
-  const approved = await decision;
-  if (!approved) {
+  const result = await decision;
+  if (!result.approved) {
     await chrome.storage.session.remove(`confirmation:${requestId}`);
     await recordAudit(origin, action, "denied");
     throw new Error("Action was cancelled or confirmation expired.");
@@ -281,30 +293,56 @@ async function requestConfirmation(
 }
 
 async function handleConfirmationMessage(message: Record<string, unknown>, sender: chrome.runtime.MessageSender): Promise<unknown> {
-  const extensionPage = chrome.runtime.getURL("confirm.html");
-  if (sender.url !== extensionPage && !sender.url?.startsWith(`${extensionPage}?`)) {
-    return { ok: false, error: "Confirmation messages are only accepted from the extension confirmation page." };
+  const allowedPages = [chrome.runtime.getURL("confirm.html"), chrome.runtime.getURL("popup.html")];
+  const senderUrl = sender.url;
+  if (!senderUrl || !allowedPages.some((url) => senderUrl === url || senderUrl.startsWith(`${url}?`))) {
+    return { ok: false, error: "Confirmation messages are only accepted from the Browser Agent extension UI." };
   }
 
   if (message.type === "confirm:get" && typeof message.requestId === "string") {
     const stored = await chrome.storage.session.get(`confirmation:${message.requestId}`);
     return stored[`confirmation:${message.requestId}`] ?? null;
   }
-  if (message.type === "confirm:resolve" && typeof message.requestId === "string" && typeof message.approved === "boolean") {
+  if (message.type === "confirm:resolve" && typeof message.requestId === "string" &&
+    typeof message.approved === "boolean" && (message.allowAll === undefined || typeof message.allowAll === "boolean")) {
     const pending = confirmations.get(message.requestId);
     if (!pending) return { ok: false, error: "This confirmation has expired." };
     const stored = await chrome.storage.session.get(`confirmation:${message.requestId}`);
-    const confirmation = stored[`confirmation:${message.requestId}`] as { createdAt?: unknown } | undefined;
+    const confirmation = stored[`confirmation:${message.requestId}`] as {
+      createdAt?: unknown;
+      origin?: unknown;
+      allowAllAvailable?: unknown;
+    } | undefined;
     if (!confirmation || typeof confirmation.createdAt !== "number" || Date.now() - confirmation.createdAt > CONFIRMATION_TIMEOUT_MS) {
-      pending.resolve(false);
+      pending.resolve({ approved: false, allowAll: false });
       return { ok: false, error: "This confirmation has expired." };
     }
-    pending.resolve(message.approved);
-    if (pending.tabId > 0) await chrome.tabs.remove(pending.tabId).catch(() => undefined);
+    if (message.approved && message.allowAll === true) {
+      if (confirmation.allowAllAvailable === false) {
+        return { ok: false, error: "This action requires one-time approval and cannot enable site-wide approval." };
+      }
+      if (typeof confirmation.origin !== "string") return { ok: false, error: "The confirmation has no valid website origin." };
+      await enableAllowAllForSite(confirmation.origin);
+    }
+    pending.resolve({ approved: message.approved, allowAll: message.allowAll === true });
     await chrome.storage.session.remove(`confirmation:${message.requestId}`);
     return { ok: true };
   }
   return { ok: false, error: "Unsupported confirmation request." };
+}
+
+async function enableAllowAllForSite(origin: string): Promise<void> {
+  await checkInteractivePermission(origin);
+  const sites = await getSitePermissions();
+  const updated = sites.map((site) => site.origin === origin ? { ...site, allowAllActions: true } : site);
+  await chrome.storage.local.set({ sites: updated });
+  await recordAudit(origin, "Allow all actions on site", "enabled");
+}
+
+async function clearConfirmationBadge(): Promise<void> {
+  if (confirmations.size === 0) {
+    await chrome.action.setBadgeText({ text: "" });
+  }
 }
 
 async function handleRequest(request: ExtensionRequest): Promise<unknown> {
@@ -328,7 +366,7 @@ async function handleRequest(request: ExtensionRequest): Promise<unknown> {
     case "page.click": {
       const tab = await getTargetTab(request.params.tabId);
       const origin = new URL(tab.url!).origin;
-      await checkInteractivePermission(origin);
+      const permission = await checkInteractivePermission(origin);
       const target = await executePageOperation(tab.id!, "describe", request.params) as {
         tag: string; name: string; href: string; formAction: string; formMethod: string;
       };
@@ -337,7 +375,12 @@ async function handleRequest(request: ExtensionRequest): Promise<unknown> {
         target.href ? `Destination: ${target.href}` : "",
         target.formAction ? `Form submission (${target.formMethod}): ${target.formAction}` : ""
       ].filter(Boolean).join(" · ");
-      await requestConfirmation(tab.id!, origin, "Click element", targetDescription);
+      const highImpact = Boolean(target.formAction) ||
+        /(?:\b(?:delete|remove|purchase|buy|checkout|pay|order|send|submit|publish|post|transfer|unsubscribe|cancel)\b|删除|移除|购买|付款|支付|下单|发送|提交|发布|转账|取消)/i.test(target.name) ||
+        Boolean(target.href && new URL(target.href).origin !== origin);
+      if (!maySkipActionConfirmation(permission) || highImpact) {
+        await requestConfirmation(tab.id!, origin, "Click element", targetDescription, undefined, !highImpact);
+      }
       const result = await executePageOperation(tab.id!, "click", {
         ...request.params,
         expectedHref: target.href,
@@ -357,7 +400,8 @@ async function handleRequest(request: ExtensionRequest): Promise<unknown> {
         throw new Error("Sensitive fields are blocked. Passwords, payment data, verification codes, and file inputs are never filled.");
       }
       if (!field.fillable) throw new Error("Only enabled text, search, URL, telephone, email, number, and multi-line text fields can be filled.");
-      const allowlisted = mayAutoAllowFill(permission, field.inputType, field.sensitive);
+      const allowlisted = mayAutoAllowFill(permission, field.inputType, field.sensitive) ||
+        maySkipActionConfirmation(permission);
       if (!allowlisted) {
         await requestConfirmation(tab.id!, origin, "Fill form field", request.params.expectedName, request.params.value);
       }
@@ -368,9 +412,11 @@ async function handleRequest(request: ExtensionRequest): Promise<unknown> {
     case "page.select": {
       const tab = await getTargetTab(request.params.tabId);
       const origin = new URL(tab.url!).origin;
-      await checkInteractivePermission(origin);
+      const permission = await checkInteractivePermission(origin);
       const option = await executePageOperation(tab.id!, "describe-select", request.params) as { label: string };
-      await requestConfirmation(tab.id!, origin, "Select option", request.params.expectedName, option.label);
+      if (!maySkipActionConfirmation(permission)) {
+        await requestConfirmation(tab.id!, origin, "Select option", request.params.expectedName, option.label);
+      }
       const result = await executePageOperation(tab.id!, "select", {
         ...request.params,
         expectedOptionLabel: option.label
@@ -391,9 +437,13 @@ async function handleRequest(request: ExtensionRequest): Promise<unknown> {
       const target = new URL(request.params.url);
       if (target.protocol !== "http:" && target.protocol !== "https:") throw new Error("Only HTTP and HTTPS navigation is allowed.");
       if (target.username || target.password) throw new Error("Navigation URLs cannot include embedded credentials.");
-      await checkInteractivePermission(new URL(tab.url!).origin);
-      await checkInteractivePermission(target.origin);
-      await requestConfirmation(tab.id!, new URL(tab.url!).origin, "Navigate browser tab", target.href);
+      const sourceOrigin = new URL(tab.url!).origin;
+      const sourcePermission = await checkInteractivePermission(sourceOrigin);
+      const targetPermission = await checkInteractivePermission(target.origin);
+      const crossOriginNavigation = target.origin !== sourceOrigin;
+      if (crossOriginNavigation || !maySkipActionConfirmation(sourcePermission) || !maySkipActionConfirmation(targetPermission)) {
+        await requestConfirmation(tab.id!, sourceOrigin, "Navigate browser tab", target.href, undefined, false);
+      }
       const current = await chrome.tabs.get(tab.id!);
       if (!current.url || new URL(current.url).origin !== new URL(tab.url!).origin) {
         throw new Error("The source page changed during confirmation. Try again.");
@@ -449,7 +499,7 @@ function runPageOperation(operation: string, params: Record<string, unknown>): u
     ].join(" ").toLowerCase();
     return ["password", "file", "hidden"].includes(field.type) ||
       /current-password|new-password|cc-|one-time-code|webauthn/.test(metadata) ||
-      /password|passcode|verification code|security code|credit card|card number|cvv|cvc|social security|ssn|\botp\b|authenticator|bank account|routing number|\biban\b|\b2fa\b|api key|private key|secret|\btoken\b/.test(metadata);
+      /password|passcode|verification code|security code|credit card|card number|cvv|cvc|social security|ssn|\botp\b|authenticator|bank account|routing number|\biban\b|\b2fa\b|api key|private key|secret|\btoken\b|密码|口令|验证码|安全码|信用卡|银行卡|卡号|社保号|身份验证|银行账户|密钥|令牌|秘密/.test(metadata);
   };
 
   const selectorFor = (element: Element): string => {

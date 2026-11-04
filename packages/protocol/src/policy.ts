@@ -28,9 +28,14 @@ export function isSitePermission(value: unknown): value is SitePermission {
   return typeof item.origin === "string" &&
     isExactHttpOrigin(item.origin) &&
     (item.mode === "readonly" || item.mode === "interact") &&
-    typeof item.allowFill === "boolean";
+    typeof item.allowFill === "boolean" &&
+    (item.allowAllActions === undefined || typeof item.allowAllActions === "boolean");
 }
 
 export function mayAutoAllowFill(site: SitePermission, inputType: string, sensitive: boolean): boolean {
   return site.mode === "interact" && site.allowFill && inputType === "search" && !sensitive;
+}
+
+export function maySkipActionConfirmation(site: SitePermission): boolean {
+  return site.mode === "interact" && site.allowAllActions === true;
 }
