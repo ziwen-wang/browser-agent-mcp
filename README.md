@@ -40,21 +40,26 @@ npm test
 npm run build
 ```
 
-扩展产物位于 `apps/extension/.output/chrome-mv3`。在 Chrome 打开 `chrome://extensions`，启用“开发者模式”，选择“加载已解压的扩展程序”并选择该目录。Edge 可在 `edge://extensions` 执行相同操作。
+### 生成可交付产品包
+
+```sh
+./build.sh
+```
+
+发行包输出到 `release/`：
+
+- `browser-agent-mcp-extension-<version>.zip`：Chrome/Edge MV3 扩展。
+- `browser-agent-mcp-<version>.zip`：扩展、已编译 MCP Server、运行依赖和安装说明的完整包。
+
+解压后按 [`INSTALL.md`](./INSTALL.md) 安装。用户只需 Node.js 22+；MCP Host 会按配置按需启动本机 Server，不需要用户手动常驻启动服务。扩展 zip 当前用于“加载已解压的扩展程序”；Chrome Web Store / Edge Add-ons 上架需要后续提交商店审核。
+
+## 开发者构建
+
+运行 `npm install` 后，可使用 `npm run typecheck`、`npm test`、`npm run build`。单独的扩展开发产物位于 `apps/extension/.output/chrome-mv3`。
 
 ## 配置 MCP
 
-1. 在 `chrome://extensions`（或 `edge://extensions`）复制扩展 ID。
-2. 生成一次性配对密钥：
-
-   ```sh
-   npm run generate-token --workspace @browser-agent-mcp/mcp-server
-   ```
-
-   将输出保存在密码管理器或本地 MCP 配置中；不要提交到 Git。
-3. 复制 `.vscode/mcp.json.example` 为 `.vscode/mcp.json`，填入生成的密钥和 `chrome-extension://<扩展ID>`。本仓库已忽略本地 `mcp.json`。
-4. 点击浏览器工具栏中的扩展图标，在“设置”页粘贴相同密钥，确认端口为 `38741` 并保存。弹窗显示 MCP Server 已连接后即可使用。
-5. 打开目标网页并点击扩展图标，在弹窗中为当前网站授予“只读访问”。确有需要时，在同一弹窗单独启用“交互”；点击、导航等网页动作仍需逐次确认。完整设置页保留站点总览、截图权限和本地审计记录。
+终端用户应优先使用 [`INSTALL.md`](./INSTALL.md) 的发行包流程。开发者可从扩展管理页复制 ID，并运行 `node apps/mcp-server/scripts/setup.mjs <扩展ID>` 生成本地 MCP Host 配置和配对密钥；不要提交生成的配置文件或分享密钥。
 
 示例 MCP 配置：
 
@@ -75,7 +80,7 @@ npm run build
 }
 ```
 
-MCP 客户端需要先按正常流程运行 `npm run build`。MCP 客户端每次启动 Server 时，扩展会连接本机端口；不要同时运行多个使用同一端口的 Server。
+MCP 客户端每次启动 Server 时，扩展会连接本机端口；不要同时运行多个使用同一端口的 Server。
 
 ## MCP 工具
 

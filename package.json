@@ -12,7 +12,11 @@
   ],
   "scripts": {
     "build": "npm run build --workspace @browser-agent-mcp/protocol && npm run build --workspace @browser-agent-mcp/mcp-server && npm run build --workspace @browser-agent-mcp/extension",
+    "release": "npm run build && node scripts/package-release.mjs",
     "typecheck": "npm run build --workspace @browser-agent-mcp/protocol && npm run typecheck --workspace @browser-agent-mcp/mcp-server && npm run typecheck --workspace @browser-agent-mcp/extension",
     "test": "npm run test --workspace @browser-agent-mcp/protocol && npm run test --workspace @browser-agent-mcp/mcp-server"
+  },
+  "devDependencies": {
+    "fflate": "^0.8.3"
   }
 }

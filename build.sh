@@ -15,11 +15,11 @@ if command -v node >/dev/null 2>&1; then
 fi
 
 if (( node_major >= 22 )); then
-  npm run build
+  npm run release
 else
   echo "Node.js 22+ is required; using a temporary Node.js 22 via npm exec."
-  npm exec --yes --package=node@22 -- npm run build
+  npm exec --yes --package=node@22 -- npm run release
 fi
 
 echo
-echo "Extension ready: $repo_root/apps/extension/.output/chrome-mv3"
+echo "Release packages ready: $repo_root/release"
