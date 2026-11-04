@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "browser-agent": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/absolute/path/to/browser-agent-mcp/apps/mcp-server/dist/index.js"],
+      "env": {
+        "BROWSER_AGENT_TOKEN": "replace-with-the-64-character-hex-token",
+        "BROWSER_AGENT_EXTENSION_ORIGIN": "chrome-extension://replace-with-extension-id",
+        "BROWSER_AGENT_PORT": "38741"
+      }
+    }
+  }
+}

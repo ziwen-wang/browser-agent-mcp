@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browser Agent MCP</title>
+  </head>
+  <body>
+    <main class="popup">
+      <header>
+        <span class="mark" aria-hidden="true">B</span>
+        <div class="brand"><strong>Browser Agent</strong><small>CONTROL THIS SITE</small></div>
+        <button id="setup-link" class="settings-link" type="button">Settings</button>
+      </header>
+
+      <section id="current-card" class="current-card">
+        <p class="eyebrow">CURRENT WEBSITE</p>
+        <h1 id="current-origin">Checking current page…</h1>
+        <p id="site-status" class="site-status" role="status">Loading access policy</p>
+
+        <button id="site-action" class="button button-primary" type="button" hidden>Allow read-only access</button>
+        <button id="mode-action" class="button button-primary" type="button" hidden>Enable interaction</button>
+        <label id="fill-row" class="toggle-row" hidden>
+          <span><strong>Auto-fill search fields</strong><small>Only non-sensitive search boxes; other fills still ask.</small></span>
+          <input id="allow-search-fill" type="checkbox" />
+        </label>
+        <button id="revoke-site" class="revoke-button" type="button" hidden>Revoke access to this site</button>
+      </section>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <button id="pause-button" class="button button-pause" type="button">Pause all agent access</button>
+
+      <footer>
+        <div id="connection" class="connection">
+          <i aria-hidden="true"></i><span id="connection-label">Checking MCP connection…</span>
+        </div>
+        <div class="footer-meta"><span id="site-count">0 sites configured</span><span>Read-only by default</span></div>
+      </footer>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

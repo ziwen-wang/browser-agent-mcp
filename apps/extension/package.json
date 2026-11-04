@@ -1,0 +1,19 @@
+{
+  "name": "@browser-agent-mcp/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wxt build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "wxt"
+  },
+  "dependencies": {
+    "@browser-agent-mcp/protocol": "0.1.0",
+    "wxt": "^0.21.5"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.326",
+    "typescript": "^5.8.3"
+  }
+}

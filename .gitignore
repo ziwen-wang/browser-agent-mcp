@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.output/
+.wxt/
+.env
+.env.*
+!.env.example
+.vscode/mcp.json
+*.log
+.DS_Store
